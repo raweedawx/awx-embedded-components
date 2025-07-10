@@ -51,9 +51,9 @@ Transfer embedded component: [TransferForm.js](https://github.com/evangelos-gkav
 
 The `.env` credentials need to be aligned with the Beneficiary/Transfer account or the KYCRFI account
 
-### Access the KYC
+### Access the KYC Embedded component
 1. Open a browser and go to `http://localhost:3000`
-2. Click on the `Create a Connected Account & Launch KYC`
+2. Click on the `KYC Embedded component`
 3. Enter `email` and `ISO2 country code` and click Create Account: This will call Airwallex `/accounts/create`, it will create a connected account and trigger the KYC emdedded component
 
 ### Access the Beneficiary component
