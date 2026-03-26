@@ -5,30 +5,40 @@ const BeneficiaryForm = () => {
   const [loading, setLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [beneficiaryComponent, setBeneficiaryComponent] = useState(null);
-  const [authData, setAuthData] = useState(null); // holds authCode + codeVerifier
+  const [connectedAccountId, setConnectedAccountId] = useState(
+    process.env.REACT_APP_BENEFICIARY_CONNECTED_ACCOUNT_ID || 'acct_jfA9Wzk3NS-YSnWUnWE_hQ'
+  );
 
   const handleInitialize = async () => {
+    const accountId = connectedAccountId.trim();
+    if (!accountId) {
+      alert('Please provide a connected account ID.');
+      return;
+    }
+
     setLoading(true);
     try {
       const authResponse = await fetch('http://localhost:5000/api/get-auth-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: 'acct_jfA9Wzk3NS-YSnWUnWE_hQ' }) // valid connected account
+        body: JSON.stringify({ accountId, component: 'beneficiary' })
       });
+
+      if (!authResponse.ok) {
+        throw new Error('Failed to get auth code for beneficiary');
+      }
 
       const { authCode, codeVerifier } = await authResponse.json();
 
       await init({
-        locale: 'en',
-        env: 'demo',
-        enabledElements: ['onboarding', 'payouts', 'risk'],
         authCode,
         codeVerifier,
+        env: process.env.REACT_APP_API_ENV || 'demo',
         clientId: process.env.REACT_APP_CLIENT_ID,
+        langKey: 'en',
       });
 
       console.log('✅ SDK initialized');
-      setAuthData({ authCode, codeVerifier }); // store it if needed
       setInitialized(true); // show form container
     } catch (err) {
       console.error('❌ Error initializing the SDK:', err);
@@ -111,20 +121,41 @@ const BeneficiaryForm = () => {
       </header>
 
       {!initialized ? (
-        <button onClick={handleInitialize} disabled={loading} style={{
-          backgroundColor: '#6A0DAD',
-          color: 'white',
-          padding: '10px 20px',
-          fontSize: '16px',
-          fontWeight: 'bold',
-          border: 'none',
-          borderRadius: '5px',
-          cursor: 'pointer',
-          textTransform: 'uppercase',
-          marginTop: '20px'
-        }}>
-          {loading ? 'Initializing...' : 'Initialize Beneficiary Form'}
-        </button>
+        <>
+          <div style={{ marginTop: '20px', width: '100%', maxWidth: '500px' }}>
+            <label htmlFor="beneficiary-account-id" style={{ display: 'block', marginBottom: '8px' }}>
+              Connected Account ID
+            </label>
+            <input
+              id="beneficiary-account-id"
+              type="text"
+              value={connectedAccountId}
+              onChange={(e) => setConnectedAccountId(e.target.value)}
+              placeholder="acct_xxx..."
+              style={{
+                width: '100%',
+                padding: '10px',
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+              }}
+            />
+          </div>
+          <button onClick={handleInitialize} disabled={loading} style={{
+            backgroundColor: '#6A0DAD',
+            color: 'white',
+            padding: '10px 20px',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            textTransform: 'uppercase',
+            marginTop: '20px'
+          }}>
+            {loading ? 'Initializing...' : 'Initialize Beneficiary Form'}
+          </button>
+        </>
       ) : (
         <>
           <div

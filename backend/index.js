@@ -150,7 +150,7 @@ app.post('/api/create-account', ensureAccessToken, async (req, res) => {
 
 // API endpoint to get authorization code
 app.post('/api/get-auth-code', ensureAccessToken, async (req, res) => {
-  const { accountId } = req.body;
+  const { accountId, component = 'kyc' } = req.body;
 
   console.log('Received request to get authorization code for accountId:', accountId);
 
@@ -161,16 +161,19 @@ app.post('/api/get-auth-code', ensureAccessToken, async (req, res) => {
       console.log('Generated codeVerifier:', codeVerifier);
       console.log('Generated codeChallenge:', codeChallenge);
 
+      const scopeByComponent = {
+          kyc: ['w:awx_action:onboarding'],
+          kycRfi: ['r:awx_action:rfi_view', 'w:awx_action:rfi_edit'],
+          beneficiary: ['w:awx_action:transfers_edit'],
+          transfer: ['w:awx_action:transfers_edit'],
+      };
+
+      const scope = scopeByComponent[component] || scopeByComponent.kyc;
+
       const authPayload = {
-          scope: [
-              //'w:awx_action:transfers_edit',
-              'w:awx_action:onboarding'
-              //'r:awx_action:rfi_view',
-              //'w:awx_action:rfi_edit'
-          ],
+          scope,
           code_challenge: codeChallenge,
           code_challenge_method: 'S256'
-          //identity: 'acct_oIKT_zwGPIWCios9uSdHqw'
       };
 
       console.log('Authorization Payload:', JSON.stringify(authPayload, null, 2));

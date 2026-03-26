@@ -7,6 +7,7 @@ const KYCForm = () => {
   const [countryCode, setCountryCode] = useState('');
   const [terms, setTerms] = useState(false);
   const [dataUsage, setDataUsage] = useState(false);
+  const [connectedAccountId, setConnectedAccountId] = useState(process.env.REACT_APP_KYC_CONNECTED_ACCOUNT_ID || '');
   const [loading, setLoading] = useState(false);
   const [kycInitialized, setKycInitialized] = useState(false);
 
@@ -15,26 +16,40 @@ const KYCForm = () => {
     setLoading(true);
 
     try {
-      
-      const createAccountPayload = { email, countryCode, terms, dataUsage };
-      console.log("Sending request to /api/create-account:", createAccountPayload);
+      let accountId = connectedAccountId.trim();
 
-      // Step 1: Create account
-      const accountResponse = await fetch('http://localhost:5000/api/create-account', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, countryCode, terms, dataUsage })
-        // body: JSON.stringify({ email, countryCode, terms, dataUsage }),
-        //body: JSON.stringify(createAccountPayload),
-      });
-      const { accountId } = await accountResponse.json();
+      if (accountId) {
+        console.log('Using provided connected account id:', accountId);
+      } else {
+        const createAccountPayload = { email, countryCode, terms, dataUsage };
+        console.log("Sending request to /api/create-account:", createAccountPayload);
+
+        // Step 1: Create account only when no account id is provided.
+        const accountResponse = await fetch('http://localhost:5000/api/create-account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, countryCode, terms, dataUsage })
+        });
+
+        if (!accountResponse.ok) {
+          throw new Error('Failed to create account');
+        }
+
+        const accountData = await accountResponse.json();
+        accountId = accountData.accountId;
+      }
 
       // Step 2: Get auth code
       const authResponse = await fetch('http://localhost:5000/api/get-auth-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId })
+        body: JSON.stringify({ accountId, component: 'kyc' })
       });
+
+      if (!authResponse.ok) {
+        throw new Error('Failed to get auth code');
+      }
+
       const { authCode, codeVerifier } = await authResponse.json();
 
       // Initialize SDK
@@ -208,12 +223,31 @@ const KYCForm = () => {
       <form onSubmit={handleSubmit} className={kycInitialized ? 'hidden' : 'kyc-form'}>
         <h2>Create an account with Airwallex</h2>
         <div className="form-group">
+          <label>Connected Account ID (optional):</label>
+          <input
+            type="text"
+            value={connectedAccountId}
+            onChange={(e) => setConnectedAccountId(e.target.value)}
+            placeholder="acct_xxx..."
+          />
+        </div>
+        <div className="form-group">
           <label>Email:</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required={!connectedAccountId.trim()}
+          />
         </div>
         <div className="form-group">
           <label>Country Code:</label>
-          <input type="text" value={countryCode} onChange={(e) => setCountryCode(e.target.value)} required />
+          <input
+            type="text"
+            value={countryCode}
+            onChange={(e) => setCountryCode(e.target.value)}
+            required={!connectedAccountId.trim()}
+          />
         </div>
         <div className="form-group checkbox-group">
           <label>
@@ -228,7 +262,7 @@ const KYCForm = () => {
           </label>
         </div>
         <button type="submit" disabled={loading}>
-          {loading ? 'Processing...' : 'Create Account'}
+          {loading ? 'Processing...' : connectedAccountId.trim() ? 'Start KYC' : 'Create Account'}
         </button>
       </form>
 

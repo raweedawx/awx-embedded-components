@@ -254,67 +254,111 @@
 
 
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { init, createElement } from '@airwallex/components-sdk';
 
 const KYCRFIForm = () => {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  const [connectedAccountId, setConnectedAccountId] = useState(
+    process.env.REACT_APP_KYC_RFI_CONNECTED_ACCOUNT_ID || 'acct_oIKT_zwGPIWCios9uSdHqw'
+  );
 
-  useEffect(() => {
-    let initialized = false;
-  
-    const initializeRFI = async () => {
-      if (initialized) return;
-      initialized = true;
-  
-      try {
-        const accountId = 'acct_oIKT_zwGPIWCios9uSdHqw';
-  
-        const authResponse = await fetch('http://localhost:5000/api/get-auth-code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accountId })
-        });
-  
-        const { authCode, codeVerifier } = await authResponse.json();
-  
-        await init({
-          authCode,
-          codeVerifier,
-          env: process.env.REACT_APP_API_ENV || 'demo',
-          clientId: process.env.REACT_APP_CLIENT_ID
-        });
-  
-        const element = await createElement('kycRfi', {
-          hideHeader: false
-        });
-  
-        await element.mount('kyc-container');
-  
-        element.on('ready', () => setLoading(false));
-        element.on('success', () => alert('RFI completed successfully.'));
-        element.on('error', (event) => {
-          console.error('RFI error:', event);
-          alert('Something went wrong. Please try again.');
-        });
-  
-      } catch (err) {
-        console.error('Failed to initialize KYC RFI component:', err);
-        alert('Failed to load RFI component');
+  const initializeRFI = async () => {
+    const accountId = connectedAccountId.trim();
+    if (!accountId) {
+      alert('Please provide a connected account ID.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const authResponse = await fetch('http://localhost:5000/api/get-auth-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, component: 'kycRfi' })
+      });
+
+      if (!authResponse.ok) {
+        throw new Error('Failed to get auth code for KYC RFI');
       }
-    };
-  
-    initializeRFI();
-  
-    return () => {
-      initialized = true;
-    };
-  }, []);
-  
+
+      const { authCode, codeVerifier } = await authResponse.json();
+
+      await init({
+        authCode,
+        codeVerifier,
+        env: process.env.REACT_APP_API_ENV || 'demo',
+        clientId: process.env.REACT_APP_CLIENT_ID
+      });
+
+      const element = await createElement('kycRfi', {
+        hideHeader: false
+      });
+
+      const container = document.getElementById('kyc-container');
+      if (container) {
+        container.innerHTML = '';
+      }
+
+      await element.mount('kyc-container');
+
+      element.on('ready', () => setLoading(false));
+      element.on('success', () => alert('RFI completed successfully.'));
+      element.on('error', (event) => {
+        console.error('RFI error:', event);
+        alert('Something went wrong. Please try again.');
+      });
+
+      setInitialized(true);
+    } catch (err) {
+      console.error('Failed to initialize KYC RFI component:', err);
+      alert('Failed to load RFI component');
+      setLoading(false);
+    }
+  };
+
 
   return (
     <div>
       <h1>Airwallex - KYC RFI</h1>
+      <div style={{ width: '100%', maxWidth: '500px' }}>
+        <label htmlFor="rfi-account-id" style={{ display: 'block', marginBottom: '8px' }}>
+          Connected Account ID
+        </label>
+        <input
+          id="rfi-account-id"
+          type="text"
+          value={connectedAccountId}
+          onChange={(e) => setConnectedAccountId(e.target.value)}
+          placeholder="acct_xxx..."
+          style={{
+            width: '100%',
+            padding: '10px',
+            fontSize: '14px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+          }}
+        />
+        <button
+          onClick={initializeRFI}
+          disabled={loading}
+          style={{
+            backgroundColor: '#6A0DAD',
+            color: 'white',
+            padding: '10px 16px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            textTransform: 'uppercase',
+            marginTop: '12px',
+          }}
+        >
+          {loading ? 'Loading...' : initialized ? 'Reload RFI Component' : 'Load RFI Component'}
+        </button>
+      </div>
       {loading && <p>Loading RFI component...</p>}
       <div id="kyc-container" style={{ height: '600px', marginTop: '20px' }} />
     </div>
