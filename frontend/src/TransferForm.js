@@ -6,14 +6,21 @@ const TransferForm = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [transferComponent, setTransferComponent] = useState(null);
+  const [connectedAccountId, setConnectedAccountId] = useState(
+    process.env.REACT_APP_TRANSFER_CONNECTED_ACCOUNT_ID || 'acct_eDWgRsz1PB2U4_TcLsKTzw'
+  );
 
 
   //use a KYC approved connected account
-  const fetchAuthCode = async () => {
+  const fetchAuthCode = async (accountId) => {
+    if (!accountId) {
+      throw new Error('Connected account ID is required');
+    }
+
     const response = await fetch('http://localhost:5000/api/get-auth-code', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accountId: 'acct_eDWgRsz1PB2U4_TcLsKTzw' }), //use a KYC approved connected account
+      body: JSON.stringify({ accountId, component: 'transfer' }),
     });
 
     if (!response.ok) throw new Error('Failed to fetch auth code');
@@ -30,18 +37,20 @@ const TransferForm = () => {
     });
   };
 
-  const initializeTransferComponent = useCallback(async () => {
+  const initializeTransferComponent = useCallback(async (accountId) => {
     setLoading(true);
     setError(null);
 
     try {
-      const { authCode, codeVerifier } = await fetchAuthCode();
+      const resolvedAccountId = accountId?.trim();
+      const { authCode, codeVerifier } = await fetchAuthCode(resolvedAccountId);
       await initializeSdk(authCode, codeVerifier);
 
       const transferComponentInstance = await createElement('payoutForm', { hideHeader: true, hideNav: true });
 
       const container = document.getElementById('transfer-form-container');
       if (container) {
+        container.innerHTML = '';
         transferComponentInstance.mount('transfer-form-container');
 
         transferComponentInstance.on('ready', () => {
@@ -52,8 +61,8 @@ const TransferForm = () => {
         transferComponentInstance.on('error', async (event) => {
           console.error('Transfer component error:', event);
           if (event.code === 'TOKEN_EXPIRED') {
-            const newAuthCode = await fetchAuthCode();
-            await initializeSdk(newAuthCode, codeVerifier);
+            const refreshedAuthData = await fetchAuthCode(resolvedAccountId);
+            await initializeSdk(refreshedAuthData.authCode, refreshedAuthData.codeVerifier);
             transferComponentInstance.mount('transfer-form-container');
           } else {
             setError('An error occurred in the transfer component.');
@@ -74,8 +83,12 @@ const TransferForm = () => {
   }, []);
 
   useEffect(() => {
-    initializeTransferComponent();
+    initializeTransferComponent(connectedAccountId);
   }, [initializeTransferComponent]);
+
+  const handleLoadComponent = () => {
+    initializeTransferComponent(connectedAccountId);
+  };
 
   const handleSubmit = async () => {
     if (transferComponent) {
@@ -95,6 +108,43 @@ const TransferForm = () => {
   return (
     <div className="transfer-form-container">
       <h1>Airwallex Embedded Transfer Component</h1>
+      <div style={{ width: '100%', maxWidth: '500px' }}>
+        <label htmlFor="transfer-account-id" style={{ display: 'block', marginBottom: '8px' }}>
+          Connected Account ID
+        </label>
+        <input
+          id="transfer-account-id"
+          type="text"
+          value={connectedAccountId}
+          onChange={(e) => setConnectedAccountId(e.target.value)}
+          placeholder="acct_xxx..."
+          style={{
+            width: '100%',
+            padding: '10px',
+            fontSize: '14px',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+          }}
+        />
+        <button
+          onClick={handleLoadComponent}
+          disabled={loading}
+          style={{
+            backgroundColor: '#6A0DAD',
+            color: 'white',
+            padding: '10px 16px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            textTransform: 'uppercase',
+            marginTop: '12px',
+          }}
+        >
+          {loading ? 'Loading...' : 'Load with account ID'}
+        </button>
+      </div>
       {loading && <p>Loading Transfer Component...</p>}
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
