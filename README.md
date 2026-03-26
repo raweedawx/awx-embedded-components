@@ -1,79 +1,102 @@
+# Airwallex Embedded Components Demo
 
-
-# Airwallex KYC, Beneficiary and Transfer Embedded Components Implementation
-
-This is an implementation of the:
-- Airwallex KYC component as documented in the [Airwallex Documentation](https://www.airwallex.com/docs/global-treasury__kyc-and-onboarding__embedded-kyc-component).
-- Airwallex KYC RFI component as documented in the [Airwallex Documentation](https://www.airwallex.com/docs/connected-accounts__handle-kyc-rfi__embedded-kyc-rfi-component).
-- Airwallex Beneficiary component as documented in the [Airwallex Documentation](https://www.airwallex.com/docs/payouts__embedded-beneficiary-component).
-- Airwallex Transfer component as documented in the [Airwallex Documentation](https://www.airwallex.com/docs/payouts__embedded-transfer-component).
-
+This demo implements:
+- Airwallex KYC component ([docs](https://www.airwallex.com/docs/global-treasury__kyc-and-onboarding__embedded-kyc-component))
+- Airwallex KYC RFI component ([docs](https://www.airwallex.com/docs/connected-accounts__handle-kyc-rfi__embedded-kyc-rfi-component))
+- Airwallex Beneficiary component ([docs](https://www.airwallex.com/docs/payouts__embedded-beneficiary-component))
+- Airwallex Transfer component ([docs](https://www.airwallex.com/docs/payouts__embedded-transfer-component))
 
 ---
 
-# Implementations:
+## Implementations
 
-KYC component: [KYCForm.js](https://github.com/evangelos-gkavogiannis-awx/awx-embedded-components/blob/main/frontend/src/KYCForm.js)
-
-KYC RFI component: [KYCRFIForm.js](https://github.com/evangelos-gkavogiannis-awx/awx-embedded-components/blob/main/frontend/src/KYCRFIForm.js)
-
-Beneficiary embedded component: [BeneficiaryForm.js](https://github.com/evangelos-gkavogiannis-awx/awx-embedded-components/blob/main/frontend/src/BeneficiaryForm.js)
-
-Transfer embedded component: [TransferForm.js](https://github.com/evangelos-gkavogiannis-awx/awx-embedded-components/blob/main/frontend/src/TransferForm.js)
+- KYC: [KYCForm.js](https://github.com/evangelos-gkavogiannis-awx/awx-embedded-components/blob/main/frontend/src/KYCForm.js)
+- KYC RFI: [KYCRFI.js](https://github.com/evangelos-gkavogiannis-awx/awx-embedded-components/blob/main/frontend/src/KYCRFI.js)
+- Beneficiary: [BeneficiaryForm.js](https://github.com/evangelos-gkavogiannis-awx/awx-embedded-components/blob/main/frontend/src/BeneficiaryForm.js)
+- Transfer: [TransferForm.js](https://github.com/evangelos-gkavogiannis-awx/awx-embedded-components/blob/main/frontend/src/TransferForm.js)
 
 ---
 
 ## Steps to Run the Application
 
-### Backend Setup
+### Backend setup
 1. Navigate to the `backend` folder.
-2. Create a `.env` file and add the following:
+2. Create a `.env` file:
    ```plaintext
    API_CLIENT_ID=your_client_id
    API_KEY=your_api_key
-3. Install dependencies and start the backend server
+   ```
+3. Install dependencies and start:
    ```plaintext
    npm install
-   node backend/index.js   
+   node index.js
+   ```
 
-### Frontend Setup
+### Frontend setup
 1. Navigate to the `frontend` folder.
-2. Create a `.env` file and add the following:
+2. Create a `.env` file:
    ```plaintext
    REACT_APP_API_ENV=demo
    REACT_APP_CLIENT_ID=your_client_id
-3. make sure the `authPayload` contains the correct scopes
-3. For the `BeneficiaryForm.js` and the `TransferForm.js` use a KYC approved connected account
-4. Install dependencies and start the frontend server
+   REACT_APP_BACKEND_URL=http://localhost:5000
+   REACT_APP_KYC_CONNECTED_ACCOUNT_ID=acct_xxx
+   REACT_APP_KYC_RFI_CONNECTED_ACCOUNT_ID=acct_xxx
+   REACT_APP_BENEFICIARY_CONNECTED_ACCOUNT_ID=acct_xxx
+   REACT_APP_TRANSFER_CONNECTED_ACCOUNT_ID=acct_xxx
+   ```
+3. Install dependencies and start:
    ```plaintext
    npm install
    npm start
+   ```
 
-The `.env` credentials need to be aligned with the Beneficiary/Transfer account or the KYCRFI account
+## Connected account IDs per element
 
-### Access the KYC Embedded component
-1. Open a browser and go to `http://localhost:3000`
-2. Click on the `KYC Embedded component`
-3. Enter `email` and `ISO2 country code` and click Create Account: This will call Airwallex `/accounts/create`, it will create a connected account and trigger the KYC emdedded component
+Each embedded element can use a different connected account ID:
+- KYC: optional input + `REACT_APP_KYC_CONNECTED_ACCOUNT_ID`
+- KYC RFI: input + `REACT_APP_KYC_RFI_CONNECTED_ACCOUNT_ID`
+- Beneficiary: input + `REACT_APP_BENEFICIARY_CONNECTED_ACCOUNT_ID`
+- Transfer: input + `REACT_APP_TRANSFER_CONNECTED_ACCOUNT_ID`
 
-### Access the Beneficiary component
-(you need a KYC approved account to add to the `BeneficiaryForm.js`)
-1. Open a browser and go to `http://localhost:3000`
-2. Click on the `Beneficiary Embedded Component`
-3. Select Bank country and account currency
-4. Fill in the required fields
-5. Click on the submit button: The [Airwallex API - Create Beneficiary](https://www.airwallex.com/docs/api#/Payouts/Beneficiaries/_api_v1_beneficiaries_create/post) will be called and a new beneficiary will be created.  
-   (You can check the actual payload sent either from the **API Request Console** on the bottom right corner or from the browser's console)
+Behavior:
+- If a connected account ID is entered, that account is used directly.
+- In KYC only, if no account ID is entered, a new connected account is created first.
 
-### Access the Trasnfer component
-(you need a KYC approved account to add to the `TransferForm.js`)
-1. Open a browser and go to `http://localhost:3000`
-2. Click on the `Transfer Embedded Component`
-3. Fill in the fields and click on Submit button: the transfer payload will be logged to browser's console can be used to call the [Create a Transfer](https://www.airwallex.com/docs/api#/Payouts/Transfers/_api_v1_transfers_create/post) endpoint
+## Backend auth scope routing
 
+`/api/get-auth-code` now accepts `component` and applies component-specific scopes:
+- `kyc` -> `w:awx_action:onboarding`
+- `kycRfi` -> `r:awx_action:rfi_view`, `w:awx_action:rfi_edit`
+- `beneficiary` -> `w:awx_action:transfers_edit`
+- `transfer` -> `w:awx_action:transfers_edit`
 
+Make sure your Airwallex app permissions and account setup match these flows.
 
+## Access each embedded component
 
+### KYC
+1. Open `http://localhost:3000`
+2. Click `KYC Embedded component`
+3. Optional: set connected account ID
+4. If no account ID is set, fill email + ISO2 country code
+5. Click `Create Account` / `Start KYC`
 
+### KYC RFI
+1. Open `http://localhost:3000`
+2. Click `KYC RFI`
+3. Set/confirm connected account ID
+4. Click `Load RFI Component`
 
-   
+### Beneficiary
+1. Open `http://localhost:3000`
+2. Click `Beneficiary Embedded Component`
+3. Set/confirm connected account ID
+4. Click `Initialize Beneficiary Form`
+5. Complete form and submit
+
+### Transfer
+1. Open `http://localhost:3000`
+2. Click `Transfer Embedded Component`
+3. Set/confirm connected account ID
+4. Click `Load with account ID`
+5. Complete form and submit (payload is logged in browser console)
